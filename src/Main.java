@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.text.*;
+import java.math.BigInteger;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -96,6 +98,10 @@ public class Main {
             inputField.setPreferredSize(new Dimension(200, 30));
             inputPanel.add(inputField);
 
+            // Add a document filter to the input field to only allow numeric characters
+            ((AbstractDocument) inputField.getDocument()).setDocumentFilter(new NumericFilter(64));
+
+
             // add algorithm selection dropdown
             algorithmSelector = new JComboBox<>(new String[]{"ECM", "PollardRho", "SimpleFactor"});
             algorithmSelector.setPreferredSize(new Dimension(150, 30));
@@ -172,6 +178,43 @@ public class Main {
             pack();
 
         }
+
+        public class NumericFilter extends DocumentFilter {
+            private int characterLimit;
+
+            public NumericFilter(int characterLimit) {
+                this.characterLimit = characterLimit;
+            }
+
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string == null) {
+                    return;
+                }
+                if (fb.getDocument().getLength() + string.length() <= characterLimit) {
+                    super.insertString(fb, offset, string.replaceAll("[^\\d]", ""), attr);
+                }
+                else {
+                    Toolkit.getDefaultToolkit().beep();
+                }
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text == null) {
+                    return;
+                }
+                if (fb.getDocument().getLength() + text.length() - length <= characterLimit) {
+                    super.replace(fb, offset, length, text.replaceAll("[^\\d]", ""), attrs);
+                } else {
+                    Toolkit.getDefaultToolkit().beep();
+                }
+            }
+        }
+
+
+
+
 
         public class CustomTableCellRenderer extends DefaultTableCellRenderer {
 
@@ -264,18 +307,18 @@ public class Main {
 
                 // Add variables for the path of the python executable and the base path of the script files
                 String pythonPath = "C:/Users/arigo/AppData/Local/Microsoft/WindowsApps/python3.10.exe";
-                String scriptPath = "\"c:/Users/arigo/OneDrive/Backup/Desktop/Code/ICS4U Final/";
+
 
                 // Use the switch statement to determine the command to run based on the selected algorithm
                 switch (algorithm) {
                     case "ECM":
-                        command = pythonPath + " " + scriptPath + "Lester.py\" " + input;
+                        command = pythonPath + " \"Lester.py\" " + input;
                         break;
                     case "PollardRho":
-                        command = pythonPath + " " + scriptPath + "PollardRho.py\" " + input;
+                        command = pythonPath + " \"PollardRho.py\" " + input;
                         break;
                     case "SimpleFactor":
-                        command = pythonPath + " " + scriptPath + "SimpleFactor.py\" " + input;
+                        command = pythonPath + " \"SimpleFactor.py\" " + input;
                         break;
                 }
                 Process process = Runtime.getRuntime().exec(command);
@@ -300,17 +343,7 @@ public class Main {
                 }
                 return output;
             }
-//            public void cancel() {
-//                if (this.getState() == SwingWorker.StateValue.STARTED) {
-//                    cancel(true);
-//                    tableModel.addRow(new Object[] { input, algorithm, "Terminated", "" });
-//                    process.destroy();
-//                    workingLabel.setText("");
-//                    inputField.setEnabled(true);
-//                    runScriptButton.setEnabled(true);
-//                    runScriptButton.setText("Run Script");
-//                }
-//            }
+
 
 
             @Override
