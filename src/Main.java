@@ -370,7 +370,7 @@ class MainFrame extends JFrame
             // Use the switch statement to determine the command to run based on the selected algorithm
             switch (algorithm) {
                 case "ECM" ->
-                        command = pythonPath + " \"Lester.py\" " + input;
+                        command = pythonPath + " \"LesterThread.py\" " + input;
                 case "PollardRho" ->
                         command = pythonPath + " \"PollardRho.py\" " + input;
                 case "SimpleFactor" ->
