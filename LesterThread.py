@@ -1,10 +1,33 @@
-import random
-import time
-import sys
-import math
+from random import randint
+from math import e as exp
+from math import sqrt, log
 import gmpy2
+import sys
+import time
+import threading
+
+def Int(x):
+    return int(x) if gmpy2 is None else gmpy2.mpz(x)
+
+class InvError(Exception):
+    def __init__(self, v):
+        self.value = v
 
 Semiprime = int(sys.argv[1])
+
+def inv(a, n):
+    a %= n
+    if gmpy2 is None:
+        try:
+            return pow(a, -1, n)
+        except ValueError:
+            import math
+            raise InvError(math.gcd(a, n))
+    else:
+        g, s, t = gmpy2.gcdext(a, n)
+        if g != 1:
+            raise InvError(g)
+        return s % n
 
 
 class ECpoint(object):
@@ -18,49 +41,56 @@ class ECpoint(object):
         A,B,N = self.A, self.B, self.N
         Px, Py, Qx, Qy = self.x, self.y, other.x, other.y
         if Px == Qx and Py == Qy:
-            if Py == 0: 
-                raise ValueError("Py cannot be zero")
-            s = ((3*Px*Px + A) * gmpy2.invert(2*Py, N)) %N
+            s = Int((3*Px*Px + A)%N * inv((2*Py)%N, N) %N)
         else:
-            if (Px-Qx) == 0: 
-                raise ValueError("(Px-Qx) cannot be zero")
-            s = ((Py-Qy) * gmpy2.invert((Px-Qx), N)) %N
-        x = ((s*s - Px - Qx) %N)
-        y = ((s*(Px - x) - Py) %N)
+            s = Int((Py-Qy)%N * inv((Px-Qx)%N, N) %N)
+        x = Int((s*s - Px - Qx) %N)
+        y = Int((s*(Px - x) - Py) %N)
         return ECpoint(A,B,N, x,y)
 
-    def __mul__(self, other):
-        result = self
-        for _ in range(other-1):
-            result += self
-        return result
-
     def __rmul__(self, other):
-        return self * other
-
-    def ECM(n):
-        x0 = gmpy2.mpz(2)
-        y0 = gmpy2.mpz(3)
-        bound = max(int(gmpy2.exp(1/2*gmpy2.sqrt(gmpy2.log(n)*gmpy2.log(gmpy2.log(n))))),100)
+        r = self; other -= 1
         while True:
-            a = random.randint(1,n-1)
-            b = (y0*y0 - x0*x0*x0 - a*x0) %n
-            if gmpy2.gcd(4*a*a*a + 27*b*b, n) != 1:
-                d = gmpy2.gcd(4*a*a*a + 27*b*b, n)
-                if d==n: continue
-                else: return d
-            P = ECpoint(a,b,n, x0,y0)
-            k = 2
-            while k < bound:
-                P = k*P
-                k *= 2
-                if P.N != n:
-                    return P.N
+            if other & 1:
+                r = r + self
+                if other==1: return r
+            other >>= 1
+            self = self+self
 
+class ECMThread(threading.Thread):
+    def __init__(self, semiprime):
+        threading.Thread.__init__(self)
+        self.semiprime = semiprime
+        self.result = None
+
+    def run(self):
+        self.result = ECM(self.semiprime)
+
+def ECM(n):
+    x0 = Int(2)
+    y0 = Int(3)
+    bound =Int(max(int(exp**(1/2*sqrt(log(n)*log(log(n))))),100))
+    while True:
+        try:
+            a = randint(1,n-1)
+            inv(a,n)
+            b = (y0*y0 - x0*x0*x0 - a*x0) %n
+            inv(b,n)
+            inv((4*a*a*a + 27*b*b)%n, n)
+
+            P = ECpoint(a,b,n, x0,y0)
+            for k in range(2, bound):
+                P = k*P
+                #print(k,P)
+
+        except InvError as e:
+            d = e.value
+            if d==n: continue
+            else: return d
 
 start_time = time.time()
 
-factors=ECpoint.ECM(Semiprime)
+factors=ECM(Semiprime)
 
 print(factors)
 
